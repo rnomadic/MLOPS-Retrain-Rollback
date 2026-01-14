@@ -90,9 +90,17 @@ print(f"RUN_ID: {run_id}")
 
 
 ### V.	The "Gatekeeper" Script (src/gatekeeper.py)
+The gatekeeper.py script then uses this captured RUN_ID mentioned above to find the logged metrics and artifacts in MLflow for comparison. <br>
+
+Please see the file gatekeeper.py
 
 
 ## 🚀 The Deployment Strategy (The Bridge)
+Here is the implementation of the **Helm Chart template** designed for dynamic model loading.
+This approach uses the Kubernetes **InitContainer** Pattern. <br>
+This is the industry-standard way to separate your Application Code (Docker Image) from your Model Artifacts (Binary files).<br>
+
+Please see the file deployment.yml
 
 
 ##  📈 The Rollback Strategy
