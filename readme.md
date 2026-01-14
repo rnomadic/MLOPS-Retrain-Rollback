@@ -24,12 +24,42 @@ Deploy Prometheus to your Kubernetes cluster to scrape the /metrics endpoint of 
 #### •	Grafana: 
 Use Grafana to visualize the data from Prometheus.
 
----
+### II.	Define the Retraining Alert
+Either you use Grafana or Prometheus Alertmanager to define the specific condition that must be met to trigger retraining. 
 
-## 🚀 The MLOps CI/CD is multi-trigger
-Code change: CI -> CT ->CD: </br>
-Data Change: CT -> CD: New data arrives (e.g., a nightly job aggregates new customer data) </br>
-Model Degradation: CT -> CD: </br>
+### III.	The Webhook Trigger (The Bridge)
+This is the critical step that connects the monitoring system to your CI/CD pipeline. <br>
+
+#### Step A: Configure GitHub Actions for Webhook Trigger
+You need to have a retrain.yml which will accept an external trigger using the repository_dispatch event. <br>
+Save this file as .github/workflows/retrain.yaml in your repository. <br>
+
+Please see MLOPS\Retrain&Rollback\retrain.yml for more details.<br>
+
+on: <br>
+  # ... existing triggers (schedule, workflow_dispatch) ... <br>
+  repository_dispatch: <br>
+    types: [model-performance-drop] # This is the unique event name <br>
+
+
+#### Step B: Configure the Alert to use the Webhook
+
+
+### IV.	The "train" Script (src/train.py)
+
+
+### V.	The "Gatekeeper" Script (src/gatekeeper.py)
+
+
+## 🚀 The Deployment Strategy (The Bridge)
+
+
+##  📈 The Rollback Strategy
+
+
+
+
+
 
 
 ### CI – The Core Trigger Mechanism: The Git Webhook
