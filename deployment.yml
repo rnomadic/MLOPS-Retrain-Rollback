@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.appName }}
+  labels:
+    app: {{ .Values.appName }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.appName }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.appName }}
+    spec:
+      # 1. THE SHARED VOLUME
+      volumes:
+        - name: model-volume
+          emptyDir: {}
+
+      # 2. THE INIT CONTAINER (The Downloader)
+      initContainers:
+        - name: model-downloader
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          # This container must have 'mlflow' installed
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Downloading model version {{ .Values.model.version }}..."
+              # MLflow CLI command to download artifacts to the shared volume
+              mlflow artifacts download \
+                --artifact-uri "models:/{{ .Values.model.name }}/{{ .Values.model.version }}" \
+                --dst-path "/shared-data/model"
+          env:
+            - name: MLFLOW_TRACKING_URI
+              value: {{ .Values.model.mlflowUri }}
+            # Pass AWS/Azure credentials here if your artifact store requires them
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: mlflow-secrets
+                  key: aws-access-key
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mlflow-secrets
+                  key: aws-secret-key
+          volumeMounts:
+            - name: model-volume
+              mountPath: /shared-data
+
+      # 3. THE MAIN CONTAINER (The Application)
+      containers:
+        - name: {{ .Values.appName }}
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          ports:
+            - containerPort: 5000
+          env:
+            # Tell your Flask/FastAPI app where to find the model
+            - name: MODEL_PATH
+              value: "/shared-data/model"
+          volumeMounts:
+            - name: model-volume
+              mountPath: /shared-data
+          
+          # LIVENESS PROBE (Crucial for Rollback Strategy)
+          # If the model is corrupt and app fails to load, this probe fails, 
+          # triggering the Helm Atomic Rollback.
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 10

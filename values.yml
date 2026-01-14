@@ -1,0 +1,11 @@
+appName: fraud-detector
+replicaCount: 2
+
+image:
+  repository: my-docker-registry/fraud-api
+  tag: latest # The application code version (rarely changes)
+
+model:
+  name: "fraud-detection-model"
+  version: "1" # DEFAULT. GitHub Action will override this.
+  mlflowUri: "http://mlflow-server:5000"

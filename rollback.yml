@@ -1,0 +1,22 @@
+name: Emergency Rollback
+
+on:
+  repository_dispatch:
+    types: [performance-alert] # Triggered by Prometheus/Grafana webhook
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: azure/setup-helm@v3
+      
+      - name: Rollback Helm Release
+        run: |
+          # Revert to the previous successful revision
+          helm rollback my-model-service 0 --namespace mlops-prod
+          
+      - name: Demote Model in MLflow
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+        run: |
+          python src/demote_model.py --model_name "my_model"

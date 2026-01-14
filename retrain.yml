@@ -1,0 +1,103 @@
+name: 🔄 Model Retraining and Deployment Pipeline
+
+on:
+  # 1. Scheduled Retraining (e.g., Weekly)
+  schedule:
+    - cron: '0 0 * * 0' # Runs every Sunday at midnight UTC
+  
+  # 2. Manual Trigger (for testing or ad-hoc runs)
+  workflow_dispatch:
+  
+  # 3. Webhook Trigger (for triggering based on performance alerts from Grafana/Prometheus)
+  repository_dispatch:
+    types: [model-performance-drop]
+
+# Define environment variables used across the pipeline
+env:
+  MODEL_NAME: "fraud-detection-model"
+  HELM_RELEASE_NAME: "fraud-service"
+  K8S_NAMESPACE: "mlops-prod"
+
+jobs:
+  train-and-validate:
+    name: 🏋️ Train, Evaluate, and Register
+    runs-on: ubuntu-latest
+    
+    # Define outputs to pass the successful model version to the deploy job
+    outputs:
+      model_version: ${{ steps.gatekeeper.outputs.new_version }}
+      
+    steps:
+      - name: ⬇️ Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: 📦 Install Dependencies
+        run: pip install -r requirements.txt # Must include mlflow, scikit-learn, etc.
+
+      # --- Training Phase ---
+      - name: 🚀 Run Training and Log to MLflow
+        id: training
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+        run: |
+          # 1. Run the training script. This script logs metrics/artifacts to MLflow 
+          #    and importantly, outputs the MLflow RUN_ID to the console/file.
+          python src/train.py > run_output.txt
+          
+          # 2. Extract the RUN_ID and set it as a job environment variable
+          #    (Assuming train.py prints the RUN_ID prefixed like "RUN_ID: 12345")
+          RUN_ID=$(grep 'RUN_ID' run_output.txt | cut -d ':' -f 2 | tr -d '[:space:]')
+          echo "Extracted RUN_ID: $RUN_ID"
+          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
+
+      # --- Gatekeeper Phase ---
+      - name: 🛡️ Compare Performance and Register Model
+        id: gatekeeper
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+        run: |
+          # Run the gatekeeper script (demotes run if performance is poor)
+          # The script's output includes '::set-output name=new_version::X' if successful
+          python scripts/gatekeeper.py \
+            --run_id ${{ env.RUN_ID }} \
+            --model_name ${{ env.MODEL_NAME }} \
+            --metric "accuracy" \
+            --minimize 
+          # Note: If gatekeeper.py fails (exit 1), this job stops, and deployment is skipped.
+
+  deploy:
+    name: 🚢 Deploy to Kubernetes via Helm
+    needs: train-and-validate # Ensures deployment only runs if gatekeeper passed
+    if: needs.train-and-validate.outputs.model_version != '' # Ensures a new version was actually registered
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: ⬇️ Checkout Repository
+        uses: actions/checkout@v3
+
+      # Note: Replace with your cloud provider's setup action (e.g., azure/setup-helm, google-github-actions/setup-gke)
+      - name: ⚙️ Setup Helm
+        uses: azure/setup-helm@v3
+
+      - name: 🔑 Configure Kubernetes Cluster Access
+        # This step depends on your specific cloud provider (e.g., Azure AKS, AWS EKS, GCP GKE)
+        # Placeholder: Assume kubeconfig is set up via a secret or cloud login action
+        run: |
+          echo "${{ secrets.KUBECONFIG_BASE64 }}" | base64 --decode > $GITHUB_WORKSPACE/kubeconfig
+          export KUBECONFIG=$GITHUB_WORKSPACE/kubeconfig
+
+      - name: ⬆️ Helm Upgrade and Deployment
+        run: |
+          # The core deployment command that injects the new model version
+          helm upgrade --install ${{ env.HELM_RELEASE_NAME }} ./helm-chart \
+            --namespace ${{ env.K8S_NAMESPACE }} \
+            --set model.version=${{ needs.train-and-validate.outputs.model_version }} \
+            --set model.mlflowUri=${{ secrets.MLFLOW_TRACKING_URI }} \
+            --atomic \ # CRITICAL: Automatically rolls back if K8s health checks fail
+            --timeout 5m \
+            --wait # Wait for the deployment to complete and pass health checks
