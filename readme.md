@@ -43,6 +43,7 @@ on: <br>
 
 
 #### Step B: Configure the Alert to use the Webhook
+```
 • Target URL: https://api.github.com/repos/<owner>/<repo>/dispatches
 • Method: POST
 • Headers:
@@ -56,7 +57,7 @@ on: <br>
     "trigger_reason": "Accuracy dropped below benchmark"
   }
 }
-
+```
 
 ### IV.	The "train" Script (src/train.py)
 
