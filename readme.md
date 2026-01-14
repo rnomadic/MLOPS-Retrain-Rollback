@@ -34,13 +34,13 @@ This is the critical step that connects the monitoring system to your CI/CD pipe
 You need to have a retrain.yml which will accept an external trigger using the repository_dispatch event. <br>
 Save this file as .github/workflows/retrain.yaml in your repository. <br>
 
-Please see MLOPS\Retrain&Rollback\retrain.yml for more details.<br>
-
-on: <br>
-  ##### ... existing triggers (schedule, workflow_dispatch) ... <br>
-  ##### repository_dispatch: <br>
-    ##### types: [model-performance-drop] # This is the unique event name <br>
-
+Please see retrain.yml for more details.<br>
+```
+on:
+  #... existing triggers (schedule, workflow_dispatch) ... <br>
+  repository_dispatch: <br>
+  types: [model-performance-drop] # This is the unique event name <br>
+```
 
 #### Step B: Configure the Alert to use the Webhook
 ```
@@ -60,6 +60,9 @@ on: <br>
 ```
 
 ### IV.	The "train" Script (src/train.py)
+See file train.py
+
+This script encapsulates the entire training process: data loading, model training, metric calculation, and logging everything to MLflow. Crucially, it prints the **MLflow Run ID** in a format that **retrain.yml** workflow can easily capture and pass to the **gatekeeper.py** script.
 
 
 ### V.	The "Gatekeeper" Script (src/gatekeeper.py)
