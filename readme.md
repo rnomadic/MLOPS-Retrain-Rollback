@@ -15,11 +15,14 @@ This implementation requires orchestrating two distinct lifecycles:
 The core idea is to establish an automated feedback loop where your monitoring system detects the performance drop and triggers your existing GitHub Retraining Action via a webhook. <br>
 
 ### I.	Monitoring
-•	Metric Collection: Expose a dedicated /metrics endpoint (using a Python library like prometheus_client: CollectorRegistry, generate_latest) in your model serving application (see file MLOPS\Retrain&Rollback\deployment_service.py). The service should calculate and expose key performance metrics (like accuracy, F1-score, or RMSE) over a rolling time window (e.g., the last 24 hours of predictions).
+#### •	Metric Collection: 
+Expose a dedicated /metrics endpoint (using a Python library like prometheus_client: CollectorRegistry, generate_latest) in your model serving application (see file MLOPS\Retrain&Rollback\deployment_service.py). The service should calculate and expose key performance metrics (like accuracy, F1-score, or RMSE) over a rolling time window (e.g., the last 24 hours of predictions).
 
-•	Prometheus: Deploy Prometheus to your Kubernetes cluster to scrape the /metrics endpoint of your model service periodically. Prometheus collects this time-series data.
+#### •	Prometheus: 
+Deploy Prometheus to your Kubernetes cluster to scrape the /metrics endpoint of your model service periodically. Prometheus collects this time-series data.
 
-•	Grafana: Use Grafana to visualize the data from Prometheus.
+#### •	Grafana: 
+Use Grafana to visualize the data from Prometheus.
 
 ---
 
