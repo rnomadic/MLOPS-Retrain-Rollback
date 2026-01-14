@@ -37,7 +37,7 @@ Save this file as .github/workflows/retrain.yaml in your repository. <br>
 Please see MLOPS\Retrain&Rollback\retrain.yml for more details.<br>
 
 on: <br>
-  # ... existing triggers (schedule, workflow_dispatch) ... <br>
+  ###### ... existing triggers (schedule, workflow_dispatch) ... <br>
   repository_dispatch: <br>
     types: [model-performance-drop] # This is the unique event name <br>
 
