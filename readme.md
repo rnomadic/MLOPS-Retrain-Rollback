@@ -146,7 +146,15 @@ In your .github/workflows/retrain.yml:
 
 ##  📈 The Rollback Strategy
 
+**Scenario A: Deployment Failure (CrashLoopBackOff)**
+•	Detection: Kubernetes Liveness probes fail.
+•	Strategy: Automated via Helm.
+•	Implementation: In your helm upgrade command (above), the --atomic flag ensures that if the deployment doesn't reach a "Ready" state within the timeout, Helm essentially runs helm rollback automatically.
 
+**Scenario B: Model Performance degradation (Logic Failure)**
+The app runs, but predictions are wrong (e.g., accuracy drops).
+•	Detection: Monitoring system (Prometheus/Grafana) detects drift or high error rates.
+•	Strategy: Automated GitHub Action Trigger.
 
 
 
