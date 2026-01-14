@@ -35,6 +35,7 @@ You need to have a retrain.yml which will accept an external trigger using the r
 Save this file as .github/workflows/retrain.yaml in your repository. <br>
 
 Please see retrain.yml for more details.<br>
+
 ```
 on:
   #... existing triggers (schedule, workflow_dispatch) ... <br>
