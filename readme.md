@@ -43,6 +43,19 @@ on: <br>
 
 
 #### Step B: Configure the Alert to use the Webhook
+• Target URL: https://api.github.com/repos/<owner>/<repo>/dispatches
+• Method: POST
+• Headers:
+•	Authorization: token YOUR_GITHUB_PAT (Use a Personal Access Token with repo scope).
+•	Content-Type: application/json
+• Payload (Body): The alert needs to send the specific event name.
+{
+  "event_type": "model-performance-drop",
+  "client_payload": {
+    "model_name": "fraud-detection-model",
+    "trigger_reason": "Accuracy dropped below benchmark"
+  }
+}
 
 
 ### IV.	The "train" Script (src/train.py)
