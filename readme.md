@@ -38,9 +38,9 @@ Please see retrain.yml for more details.<br>
 
 ```
 on:
-  #... existing triggers (schedule, workflow_dispatch) ... <br>
-  repository_dispatch: <br>
-  types: [model-performance-drop] # This is the unique event name <br>
+  #... existing triggers (schedule, workflow_dispatch) ...
+  repository_dispatch:
+  types: [model-performance-drop] # This is the unique event name
 ```
 
 #### Step B: Configure the Alert to use the Webhook
@@ -101,8 +101,48 @@ Here is the implementation of the **Helm Chart template** designed for dynamic m
 This approach uses the Kubernetes **InitContainer** Pattern. <br>
 This is the industry-standard way to separate your Application Code (Docker Image) from your Model Artifacts (Binary files).<br>
 
-Please see the file deployment.yml
+Please see the file deployment.yml <br>
 
+The Architecture: **"Init-and-Mount"** <br>
+Instead of baking the huge model file into your Docker image (which makes the image heavy and slow to build), we download the model at runtime. <br>
+
+**Init Container:** Starts first. Connects to MLflow, downloads the specific model version (passed by GitHub Actions) to a shared volume, and then terminates. 
+
+```
+      echo "Downloading model version {{ .Values.model.version }}..."
+      # MLflow CLI command to download artifacts to the shared volume
+      mlflow artifacts download \
+      --artifact-uri "models:/{{ .Values.model.name }}/{{ .Values.model.version }}" \
+                --dst-path "/shared-data/model"
+
+
+```
+
+**Shared Volume:** A temporary storage space inside the Pod shared between containers. <br>
+
+**Main Container:** Starts only after the Init Container finishes. It loads the model from the Shared Volume and serves the API.
+
+1)	The Deployment Template (templates/deployment.yaml)
+   This file defines the logic. Note the use of ```{{ .Values.model.version }}``` which allows GitHub Actions to inject the version number dynamically.
+2)	The Values File (values.yaml)
+   This acts as the default configuration. Your GitHub Action will override specific lines here.
+3)	Tying it back to GitHub Actions
+Now, look at how the deploy step in your GitHub Action actually injects the data into the template above. <br>
+In your .github/workflows/retrain.yml:
+
+```
+     - name: ⬆️ Helm Upgrade and Deployment
+        run: |
+          # The core deployment command that injects the new model version
+          helm upgrade --install ${{ env.HELM_RELEASE_NAME }} ./helm-chart \
+            --namespace ${{ env.K8S_NAMESPACE }} \
+            --set model.version=${{ needs.train-and-validate.outputs.model_version }} \
+            --set model.mlflowUri=${{ secrets.MLFLOW_TRACKING_URI }} \
+            --atomic \ # CRITICAL: Automatically rolls back if K8s health checks fail
+            --timeout 5m \
+            --wait # Wait for the deployment to complete and pass health checks
+
+```
 
 ##  📈 The Rollback Strategy
 
