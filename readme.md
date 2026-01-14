@@ -63,6 +63,30 @@ on:
 See file train.py
 
 This script encapsulates the entire training process: data loading, model training, metric calculation, and logging everything to MLflow. Crucially, it prints the **MLflow Run ID** in a format that **retrain.yml** workflow can easily capture and pass to the **gatekeeper.py** script.
+**Integration Notes:**
+In your train.py you have below line <br>
+```
+# --- CRITICAL OUTPUT FOR CI/CD --- # This print statement is parsed by the GitHub Actions workflow (retrain.yml)
+# to get the Run ID and pass it to the gatekeeper script.
+print(f"RUN_ID: {run_id}")
+```
+**retrain.yml** uses a specific command to capture this output and store it as an environment variable **($GITHUB_ENV):**
+
+```
+# Snippet from retrain.yml's 'Run Training' step
+      - name: 🚀 Run Training and Log to MLflow
+        id: training
+        # ... setup ...
+        run: |
+          # 1. Execute the script and capture all output
+          python src/train.py > run_output.txt
+          
+          # 2. Extract the RUN_ID by grepping the specific string and parsing it
+          RUN_ID=$(grep 'RUN_ID' run_output.txt | cut -d ':' -f 2 | tr -d '[:space:]')
+          
+          # 3. Store the RUN_ID in GitHub Actions environment
+          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
+```
 
 
 ### V.	The "Gatekeeper" Script (src/gatekeeper.py)
